@@ -3,6 +3,7 @@ import { readFile } from 'fs';
 import { resolve as resolvePath } from 'path';
 
 import { notNil, haversine } from '../util';
+import { writeFile } from 'fs/promises';
 
 export interface Airport {
   id: string;
@@ -19,6 +20,12 @@ export interface Route {
   source: Airport;
   destination: Airport;
   distance: number;
+}
+
+export interface IndexBasedGraph {
+  [sourceId: string]: {
+    [destinationId: string]: number;
+  }
 }
 
 function parseCSV<T extends Readonly<string[]>>(filePath: string, columns: T): Promise<{ [key in T[number]]: string }[]> {
@@ -79,4 +86,35 @@ export async function loadRouteData(): Promise<Route[]> {
       ),
     }
   }).filter(notNil);
+}
+
+export async function createIndexBasedGraph(): Promise<IndexBasedGraph> {
+  const routes = await loadRouteData();
+
+  const graph = routes.reduce((graph, route) => {
+    if (graph[route.source.id] === undefined) {
+      graph[route.source.id] = {};
+    }
+
+    graph[route.source.id][route.destination.id] = route.distance;
+
+    return graph;
+  }, {});
+
+  return graph;
+}
+
+export async function exportGraphFiles(){
+  const airports = await loadAirportData();
+  const airportsObjById = airports.reduce((obj, airport) => {
+    const { id, ...rest } = airport;
+    obj[id] = rest;
+    return obj;
+  }, {});
+
+  await writeFile(resolvePath(__dirname, './airports.json'), JSON.stringify(airportsObjById, null, 2));
+
+  const graph = await createIndexBasedGraph()
+
+  await writeFile(resolvePath(__dirname, './graph.json'), JSON.stringify(graph, null, 2));
 }
