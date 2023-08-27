@@ -1,8 +1,11 @@
 import * as express from 'express';
 import * as morgan from 'morgan';
 
-import { notNil, flatten } from '../util';
-import { Airport, loadAirportData } from '../data';
+import { notNil, flatten, pathFinder } from '../util';
+import { createAirportDict, createIndexBasedGraph, loadAirportData } from '../data';
+import { Airport } from '../types';
+import { writeFileSync } from 'fs';
+
 
 export async function createApp() {
   const app = express();
@@ -14,6 +17,10 @@ export async function createApp() {
       airport.icao !== null ? [airport.icao.toLowerCase(), airport] as const : null,
     ].filter(notNil)))
   );
+
+  const idAirportsDict = await createAirportDict();
+  const graph = await createIndexBasedGraph()
+
 
   app.use(morgan('tiny'));
 
@@ -45,15 +52,26 @@ export async function createApp() {
       return res.status(404).send('No such airport, please provide a valid IATA/ICAO codes');
     }
 
-    // TODO: Figure out the route from source to destination
-    console.log('No algorithm implemented');
+    // Due to some iata/icao codes missing, we I'll use an airport's id based graph:
+    console.log({
+      sourceAirport,
+      destinationAirport,
+    })
+    const { path, distance} = pathFinder(graph, sourceAirport.id, destinationAirport.id, 4)
 
-    return res.status(200).send({
-      source,
-      destination,
-      distance: 0,
-      hops: [],
-    });
+    const hops = path.map((id) => idAirportsDict[id]);
+
+    const response = {
+      source: idAirportsDict[path[0]],
+      destination: idAirportsDict[path[path.length - 1]],
+      distance,
+      hops,
+    }
+
+    console.log(response)
+
+
+    return res.status(200).send(response);
   });
 
   return app;

@@ -1,32 +1,10 @@
 import * as parse from 'csv-parse';
-import { readFile } from 'fs';
+import { readFile, writeFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 
 import { notNil, haversine } from '../util';
-import { writeFile } from 'fs/promises';
+import { Airport, Graph, IdAirportsDict, Route } from '../types';
 
-export interface Airport {
-  id: string;
-  icao: string | null;
-  iata: string | null;
-  name: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-}
-
-export interface Route {
-  source: Airport;
-  destination: Airport;
-  distance: number;
-}
-
-export interface IndexBasedGraph {
-  [sourceId: string]: {
-    [destinationId: string]: number;
-  }
-}
 
 function parseCSV<T extends Readonly<string[]>>(filePath: string, columns: T): Promise<{ [key in T[number]]: string }[]> {
   return new Promise((resolve, reject) => {
@@ -88,7 +66,20 @@ export async function loadRouteData(): Promise<Route[]> {
   }).filter(notNil);
 }
 
-export async function createIndexBasedGraph(): Promise<IndexBasedGraph> {
+export async function createAirportDict(): Promise<IdAirportsDict> {
+  const airports = await loadAirportData();
+
+  return airports.reduce((acc, airport) => {
+    const { id, iata, icao } = airport;
+    acc[id] = iata || icao || id;
+    return acc;
+  }, {});
+
+
+
+}
+
+export async function createIndexBasedGraph(): Promise<Graph> {
   const routes = await loadRouteData();
 
   const graph = routes.reduce((graph, route) => {
@@ -96,25 +87,11 @@ export async function createIndexBasedGraph(): Promise<IndexBasedGraph> {
       graph[route.source.id] = {};
     }
 
-    graph[route.source.id][route.destination.id] = route.distance;
-
+    if (route.source.id !== route.destination.id) {
+      graph[route.source.id][route.destination.id] = route.distance;
+    }
     return graph;
   }, {});
 
   return graph;
-}
-
-export async function exportGraphFiles(){
-  const airports = await loadAirportData();
-  const airportsObjById = airports.reduce((obj, airport) => {
-    const { id, ...rest } = airport;
-    obj[id] = rest;
-    return obj;
-  }, {});
-
-  await writeFile(resolvePath(__dirname, './airports.json'), JSON.stringify(airportsObjById, null, 2));
-
-  const graph = await createIndexBasedGraph()
-
-  await writeFile(resolvePath(__dirname, './graph.json'), JSON.stringify(graph, null, 2));
 }

@@ -13,7 +13,6 @@
     "build": "tsc && yarn copy-files",
     "build:clean": "rm -rf ./build && yarn build",
     "dev": "TS_NODE_PROJECT='./tsconfig.json' ts-node-dev --respawn ./src src/index.ts",
-    "create-jsons":"npx ts-node-dev ./src/scripts/initializeFiles.ts ",
     "test": "jest",
     "start": "yarn build && node build/index.js"
   },
