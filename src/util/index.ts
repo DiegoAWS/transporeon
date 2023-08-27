@@ -29,50 +29,37 @@ export function haversine(lat1: number, lon1: number, lat2: number, lon2: number
   return 2.0 * earthRadiusKm * Math.asin(Math.sqrt(d));
 }
 
-export function pathFinder(graph: Graph, source: string, destination: string, maxEdges: number = 4): PathFinderResponse {
-  // Initialize distances and predecessors
-  let distances: { [key: string]: number } = {};
-  let predecessors: { [key: string]: string } = {};
-  for (let vertex in graph) {
-    distances[vertex] = Infinity;
-  }
-  distances[source] = 0;
+export function pathFinder(graph: Graph, source: string, destination: string, maxEdges = 4): PathFinderResponse {
+  const vertices = Object.keys(graph);
 
-  // Queue to store vertices and their distances
-  let queue: [string, number, number][] = [[source, 0, 0]];
+  let bestDistance = Infinity;
+  let bestPath: string[] = [];
 
-  while (queue.length > 0) {
-    let [currentVertex, currentDistance, currentEdges] = queue.shift()!;
+  function dfs(at: string, visited: Set<string>, path: string[], distance: number, edges: number) {
+      visited.add(at);
+      path.push(at);
 
-    // Check if the destination is reached with the allowed number of edges
-    if (currentVertex === destination && currentEdges <= maxEdges) {
-      let path = [];
-      let current = destination;
-      while (current) {
-        path.unshift(current);
-        current = predecessors[current];
+      if (at === destination && distance < bestDistance && edges <= maxEdges) {
+          bestDistance = distance;
+          bestPath = [...path];
       }
-      return { distance: currentDistance, path: path };
-    }
 
-    // Skip vertices that are reached with more than the allowed number of edges
-    if (currentEdges > maxEdges) {
-      continue;
-    }
-
-    for (let neighbor in graph[currentVertex]) {
-      let weight = graph[currentVertex][neighbor];
-      let distance = currentDistance + weight;
-      let edgesUsed = currentEdges + 1;
-
-      // Update the distance and add the neighbor to the queue
-      if (distance < distances[neighbor]) {
-        distances[neighbor] = distance;
-        predecessors[neighbor] = currentVertex;
-        queue.push([neighbor, distance, edgesUsed]);
+      if (edges < maxEdges) {
+          for (const neighbor in graph[at]) {
+              if (!visited.has(neighbor)) {
+                  dfs(neighbor, new Set(visited), [...path], distance + graph[at][neighbor], edges + 1);
+              }
+          }
       }
-    }
+
+      visited.delete(at);
+      path.pop();
   }
 
-  return { distance: Infinity, path: [] };  // No path found within the restrictions
+  dfs(source, new Set(), [], 0, 0);
+
+  return {
+      path: bestPath,
+      distance: bestDistance
+  };
 }

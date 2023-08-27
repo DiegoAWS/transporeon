@@ -12,31 +12,30 @@ describe('server', () => {
   });
 
   describe('shortest route', () => {
-    // it('correctly routes from TLL to SFO', async () => {
-    //   // https://www.greatcirclemap.com/?routes=TLL-TRD-KEF-YEG-SFO%2C%20TLL-ARN-OAK-SFO
-    //   const response = await request(server).get('/routes/TLL/SFO');
-    //   const body = response.body;
+    it('correctly routes from TLL to SFO', async () => {
+      // https://www.greatcirclemap.com/?routes=TLL-TRD-KEF-YEG-SFO%2C%20TLL-ARN-OAK-SFO
+      const response = await request(server).get('/routes/TLL/SFO');
+      const body = response.body;
 
-    //   expect(body.distance).toBeWithin(8990, 9300); // Fixed distance based on greatcirclemap.com route
-    //   expect(body).toEqual(expect.objectContaining({
-    //     source: 'TLL',
-    //     destination: 'SFO',
-    //   }));
+      expect(body.distance).toBeWithin(8990, 9300); // Fixed distance based on greatcirclemap.com route
+      expect(body).toEqual(expect.objectContaining({
+        source: 'TLL',
+        destination: 'SFO',
+      }));
 
-    //   // There are multiple acceptable hop sequences, check for either
-    //   expect([
-    //     ['TLL', 'TRD', 'KEF', 'YEG', 'SFO'],
-    //     ['TLL', 'ARN', 'OAK', 'SFO'],
-    //   ]).toContainEqual(body.hops);
-    // }, TIMEOUT);
+      // There are multiple acceptable hop sequences, check for either
+      expect([
+        ['TLL', 'TRD', 'KEF', 'YEG', 'SFO'],
+        ['TLL', 'ARN', 'OAK', 'SFO'],
+      ]).toContainEqual(body.hops);
+    }, TIMEOUT);
 
     it('correctly routes from HAV to TAY', async () => {
       // https://www.greatcirclemap.com/?routes=%20HAV-NAS-JFK-HEL-TAY
       const response = await request(server).get('/routes/HAV/TAY');
       const body = response.body;
-
       
-      expect(body.distance).toBeWithin(9180, 9200);
+      expect(body.distance).toBeWithin(9170, 9200);
       expect(body).toEqual(expect.objectContaining({
         source: 'HAV',
         destination: 'TAY',

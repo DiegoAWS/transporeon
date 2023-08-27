@@ -53,11 +53,8 @@ export async function createApp() {
     }
 
     // Due to some iata/icao codes missing, we I'll use an airport's id based graph:
-    console.log({
-      sourceAirport,
-      destinationAirport,
-    })
-    const { path, distance} = pathFinder(graph, sourceAirport.id, destinationAirport.id, 4)
+    
+    const { path, distance} = pathFinder(graph, sourceAirport.id, destinationAirport.id)
 
     const hops = path.map((id) => idAirportsDict[id]);
 
@@ -67,9 +64,6 @@ export async function createApp() {
       distance,
       hops,
     }
-
-    console.log(response)
-
 
     return res.status(200).send(response);
   });
