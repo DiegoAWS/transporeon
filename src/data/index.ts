@@ -2,8 +2,8 @@ import * as parse from 'csv-parse';
 import { readFile, writeFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 
-import { notNil, haversine } from '../util';
-import { Airport, Graph, IdAirportsDict, Route } from '../types';
+import { notNil, haversine, flatten } from '../util';
+import { Airport, Graph, GraphDistances, IdAirportsDict, Route } from '../types';
 
 
 function parseCSV<T extends Readonly<string[]>>(filePath: string, columns: T): Promise<{ [key in T[number]]: string }[]> {
@@ -66,6 +66,15 @@ export async function loadRouteData(): Promise<Route[]> {
   }).filter(notNil);
 }
 
+export function createAirportByCode(airports: Airport[]): Map<string, Airport> {
+  return new Map<string, Airport>(
+    flatten(airports.map((airport) => [
+      airport.iata !== null ? [airport.iata.toLowerCase(), airport] as const : null,
+      airport.icao !== null ? [airport.icao.toLowerCase(), airport] as const : null,
+    ].filter(notNil)))
+  );
+}
+
 export async function createAirportDict(): Promise<IdAirportsDict> {
   const airports = await loadAirportData();
 
@@ -79,19 +88,41 @@ export async function createAirportDict(): Promise<IdAirportsDict> {
 
 }
 
-export async function createIndexBasedGraph(): Promise<Graph> {
-  const routes = await loadRouteData();
+export function createIndexBasedGraph(airports: Airport[], routes: Route[]): Graph {
+  const graph = {};
 
-  const graph = routes.reduce((graph, route) => {
-    if (graph[route.source.id] === undefined) {
-      graph[route.source.id] = {};
+  // Add flight connections from routes
+  for (const route of routes) {
+    const sourceId = route.source.id;
+    const destinationId = route.destination.id;
+    const distance = route.distance;
+
+    if (!graph[sourceId]) {
+      graph[sourceId] = {};
     }
 
-    if (route.source.id !== route.destination.id) {
-      graph[route.source.id][route.destination.id] = route.distance;
+    if (sourceId !== destinationId) {
+      graph[sourceId][destinationId] = {
+        flight: distance,
+      };
     }
-    return graph;
-  }, {});
+  }
+
+  // Add ground connections
+  for (const airport1 of airports) {
+    for (const airport2 of airports) {
+      if (airport1.id !== airport2.id) {
+        const distance = haversine(airport1.location.latitude, airport1.location.longitude, airport2.location.latitude, airport2.location.longitude);
+
+        if (distance <= 100) {
+          if (!graph[airport1.id]) {
+            graph[airport1.id] = {};
+          }
+          graph[airport1.id][airport2.id] = { ground: distance };
+        }
+      }
+    }
+  }
 
   return graph;
 }

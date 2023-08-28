@@ -28,35 +28,61 @@ export function haversine(lat1: number, lon1: number, lat2: number, lon2: number
   const earthRadiusKm = 6371.0088;
   return 2.0 * earthRadiusKm * Math.asin(Math.sqrt(d));
 }
-
-export function pathFinder(graph: Graph, source: string, destination: string, maxEdges = 4): PathFinderResponse {
-  const vertices = Object.keys(graph);
+export function pathFinder(graph: Graph, source: string, destination: string, maxFlights = 4): PathFinderResponse {
 
   let bestDistance = Infinity;
   let bestPath: string[] = [];
 
-  function dfs(at: string, visited: Set<string>, path: string[], distance: number, edges: number) {
-      visited.add(at);
-      path.push(at);
+  const visited = new Set<string>();
 
-      if (at === destination && distance < bestDistance && edges <= maxEdges) {
-          bestDistance = distance;
-          bestPath = [...path];
-      }
+  function dfs(at: string, path: string[], distance: number, flights: number, arrivedByGround: boolean = false) {
+    visited.add(at);
+    path.push(at);
 
-      if (edges < maxEdges) {
-          for (const neighbor in graph[at]) {
-              if (!visited.has(neighbor)) {
-                  dfs(neighbor, new Set(visited), [...path], distance + graph[at][neighbor], edges + 1);
-              }
-          }
-      }
+    if (at === destination && distance < bestDistance && flights <= maxFlights) {
+        bestDistance = distance;
+        bestPath = [...path];
+    }
 
-      visited.delete(at);
-      path.pop();
+    if (flights < maxFlights) {
+        for (const neighbor in graph[at]) {
+            if (visited.has(neighbor)) continue;
+
+            const connection = graph[at][neighbor];
+
+            if (arrivedByGround && 'ground' in connection) continue;
+
+            visited.add(neighbor);
+
+            if ('flight' in connection) {
+                dfs(
+                    neighbor,
+                    path,
+                    distance + connection.flight,
+                    flights + 1,
+                    false
+                );
+            }
+
+            if ('ground' in connection) {
+                dfs(
+                    neighbor,
+                    path,
+                    distance + connection.ground,
+                    flights,
+                    true
+                );
+            }
+
+            visited.delete(neighbor);
+        }
+    }
+
+    visited.delete(at);
+    path.pop();
   }
 
-  dfs(source, new Set(), [], 0, 0);
+  dfs(source, [], 0, 0);
 
   return {
       path: bestPath,

@@ -1,9 +1,8 @@
 import * as express from 'express';
 import * as morgan from 'morgan';
 
-import { notNil, flatten, pathFinder } from '../util';
-import { createAirportDict, createIndexBasedGraph, loadAirportData } from '../data';
-import { Airport } from '../types';
+import { pathFinder } from '../util';
+import { createAirportByCode, createAirportDict, createIndexBasedGraph, loadAirportData, loadRouteData } from '../data';
 import { writeFileSync } from 'fs';
 
 
@@ -11,16 +10,14 @@ export async function createApp() {
   const app = express();
 
   const airports = await loadAirportData();
-  const airportsByCode = new Map<string, Airport>(
-    flatten(airports.map((airport) => [
-      airport.iata !== null ? [airport.iata.toLowerCase(), airport] as const : null,
-      airport.icao !== null ? [airport.icao.toLowerCase(), airport] as const : null,
-    ].filter(notNil)))
-  );
-
+  const airportsByCode = createAirportByCode(airports);
   const idAirportsDict = await createAirportDict();
-  const graph = await createIndexBasedGraph()
+  const routes = await loadRouteData();
+  const graph = createIndexBasedGraph(airports, routes);
 
+  writeFileSync('src/data/airports.json', JSON.stringify(airports, null, 2))
+  writeFileSync('src/data/routes.json', JSON.stringify(routes, null, 2))
+  writeFileSync('src/data/graph.json', JSON.stringify(graph, null, 2))
 
   app.use(morgan('tiny'));
 
@@ -53,8 +50,7 @@ export async function createApp() {
     }
 
     // Due to some iata/icao codes missing, we I'll use an airport's id based graph:
-    
-    const { path, distance} = pathFinder(graph, sourceAirport.id, destinationAirport.id)
+    const { path, distance } = pathFinder(graph, sourceAirport.id, destinationAirport.id)
 
     const hops = path.map((id) => idAirportsDict[id]);
 
